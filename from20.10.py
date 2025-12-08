@@ -131,6 +131,7 @@ class PowerMethod:
         x_prev = x0.copy()
         lambda_history = []
         residual_history = []
+        eigenvectors_history = []
 
         # Начальное приближение для собственного значения
         lambda_k = np.dot(self.A @ x_prev, x_prev)
@@ -148,13 +149,16 @@ class PowerMethod:
                 # ФОРМУЛА (15): x^(k+1) = y^(k+1) / ‖y^(k+1)‖₂
                 x_current = y_current / np.linalg.norm(y_current)
 
-                # Невязка
-                residual = np.linalg.norm(self.A @ x_current - lambda_k * x_current)
+                current_lambda = np.dot(self.A @ x_current, x_current)
+                residual = np.linalg.norm(self.A @ x_current - current_lambda * x_current)
 
                 lambda_history.append(lambda_k)
                 residual_history.append(residual)
+                eigenvectors_history.append(x_current.copy())
 
                 if residual < self.epsilon and k > 0:
+                    lambda_final = current_lambda
+                    x_final = x_current
                     break
 
                 x_prev = x_current.copy()
@@ -163,11 +167,17 @@ class PowerMethod:
                 print("Матрица вырождена, попытка использовать псевдообратную")
                 y_current = np.linalg.lstsq(B, x_prev, rcond=None)[0]
                 x_current = y_current / np.linalg.norm(y_current)
+                lambda_final = np.dot(self.A @ x_current, x_current)
+                x_final = x_current
                 break
+        else:
+            lambda_final = np.dot(self.A @ x_current, x_current)
+            x_final = x_current
 
-        return lambda_k, x_current, {
+        return lambda_final, x_final, {
             'lambda_history': lambda_history,
             'residual_history': residual_history,
+            'eigenvectors_history': eigenvectors_history,
             'iterations': k + 1
         }
 
@@ -386,26 +396,31 @@ def task_9_2(A=None, lambda_approx=None):
     lambda_rayleigh, eigenvector_rayleigh, ray_hist = pm.rayleigh_quotient_iteration()
 
     exact_eigenvalues, exact_eigenvectors = np.linalg.eig(A)
-    idx_max = np.argmax(np.abs(exact_eigenvalues))
-    lambda_exact = exact_eigenvalues[idx_max]
-    eigenvector_exact = exact_eigenvectors[:, idx_max]
 
-    print(f"\nТочное максимальное собственное значение: {lambda_exact:.10f}")
+    idx_rayleigh = np.argmin(np.abs(exact_eigenvalues - lambda_rayleigh))
+    lambda_exact_rayleigh = exact_eigenvalues[idx_rayleigh]
+    eigenvector_exact_rayleigh = exact_eigenvectors[:, idx_rayleigh]
+
+    idx_inv = np.argmin(np.abs(exact_eigenvalues - lambda_inv))
+    lambda_exact_inv = exact_eigenvalues[idx_inv]
+    eigenvector_exact_inv = exact_eigenvectors[:, idx_inv]
 
     print(f"\nМетод обратных итераций:")
-    print(f"  λ₁ = {lambda_inv:.10f}")
-    print(f"  Погрешность: {abs(lambda_inv - lambda_exact):.2e}")
+    print(f"  Полученное λ = {lambda_inv:.10f}")
+    print(f"  Ближайшее точное λ = {lambda_exact_inv:.10f}")
+    print(f"  Погрешность λ: {abs(lambda_inv - lambda_exact_inv):.2e}")
     print(f"  Итераций: {inv_hist['iterations']}")
     print(f"  Апостериорная оценка: {pm.a_posteriori_error(lambda_inv, eigenvector_inv):.2e}")
 
     print(f"\nМетод с отношением Рэлея:")
-    print(f"  λ₁ = {lambda_rayleigh:.10f}")
-    print(f"  Погрешность: {abs(lambda_rayleigh - lambda_exact):.2e}")
+    print(f"  Полученное λ = {lambda_rayleigh:.10f}")
+    print(f"  Ближайшее точное λ = {lambda_exact_rayleigh:.10f}")
+    print(f"  Погрешность λ: {abs(lambda_rayleigh - lambda_exact_rayleigh):.2e}")
     print(f"  Итераций: {ray_hist['iterations']}")
     print(f"  Апостериорная оценка: {pm.a_posteriori_error(lambda_rayleigh, eigenvector_rayleigh):.2e}")
 
-    cos_angle_inv = abs(np.dot(eigenvector_inv, eigenvector_exact))
-    cos_angle_rayleigh = abs(np.dot(eigenvector_rayleigh, eigenvector_exact))
+    cos_angle_inv = abs(np.dot(eigenvector_inv, eigenvector_exact_inv))
+    cos_angle_rayleigh = abs(np.dot(eigenvector_rayleigh, eigenvector_exact_rayleigh))
 
     print(f"\nКачество собственного вектора:")
     print(f"  Обратные итерации: cos(φ) = {cos_angle_inv:.6f}")

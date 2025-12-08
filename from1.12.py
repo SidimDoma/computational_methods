@@ -6,23 +6,23 @@ from scipy.sparse.linalg import spsolve
 
 # Захаров Тимофей, 23Б06-мм. Решение задачи 11.1 вариант 7
 a, b = -1.0, 1.0
-n_values = [10, 20]
+n_values = [10, 20, 100]
 
 # Коэффициенты уравнения
 def p(x):
-    return (4 + x) / (5 + 2 * x)
+    return 1/(2 + x)
 
 
 def q(x):
-    return x / 2 - 1
+    return 1 / (x * x + 4 * x + 4)
 
 
 def r(x):
-    return 1 + np.exp(x / 2)
+    return np.cos(x)
 
 
 def f(x):
-    return 2 + x
+    return 1 + x
 
 
 def ode(x, y):
@@ -30,7 +30,7 @@ def ode(x, y):
 
 
 def bc(ya, yb):
-    return np.array([ya[1], yb[1] + 2 * yb[0]])
+    return np.array([ya[0], yb[0]])
 
 
 x_exact = np.linspace(a, b, 1001)
@@ -43,8 +43,8 @@ def y_exact_func(x):
 
 
 print("=" * 85)
-print("Вариант 7: -(4+x)/(5+2x)*u'' + (x/2-1)*u' + (1+exp(x/2))*u = 2+x")
-print("          u'(-1)=0, u'(1)+2u(1)=0")
+print("Вариант c листочка: -(1/(2+x) u'(x))' + cos(x) u(x) = 1 + x")
+print("          u(-1)=0, u(1)=0")
 print("=" * 85)
 
 all_results = []
@@ -61,7 +61,7 @@ for n in n_values:
     rhs = np.zeros(n + 1)
 
     main_diag[0] = 1
-    upper_diag[0] = -1
+    upper_diag[0] = 0
 
     for i in range(1, n):
         xi = x[i]
@@ -74,8 +74,8 @@ for n in n_values:
         upper_diag[i] = C_i
         rhs[i] = h ** 2 * f(xi)
 
-    lower_diag[n - 1] = -1
-    main_diag[n] = 2 * h + 1
+    lower_diag[n - 1] = 0
+    main_diag[n] = 1
 
     A_mat = diags([main_diag, lower_diag, upper_diag], [0, -1, 1], format='csc')
     y_O1 = spsolve(A_mat, rhs)
@@ -89,7 +89,7 @@ for n in n_values:
     rhs2 = np.zeros(n + 2)
 
     main_diag2[0] = 1
-    upper_diag2[0] = -1
+    upper_diag2[0] = 0
 
     for i in range(1, n + 1):
         xi = x_shifted[i]
@@ -102,8 +102,8 @@ for n in n_values:
         upper_diag2[i] = C_i
         rhs2[i] = h ** 2 * f(xi)
 
-    lower_diag2[n] = h - 1
-    main_diag2[n + 1] = h + 1
+    lower_diag2[n] = 0
+    main_diag2[n + 1] = 1
 
     A_mat2 = diags([main_diag2, lower_diag2, upper_diag2], [0, -1, 1], format='csc')
     y_shifted = spsolve(A_mat2, rhs2)
@@ -152,27 +152,26 @@ for i in range(0, 11):
 print("=" * 85)
 
 # Графики решений
-plt.figure(figsize=(12, 5))
+plt.figure(figsize=(15, 10))
 
-# График решений для n=10
-plt.subplot(1, 2, 1)
-res_20 = all_results[1]
+
+#
+# plt.plot(x_fine, y_exact_fine, 'k-', linewidth=2, label='Точное решение')
+# plt.plot(res_20['x'], res_20['y_O1'], 'bo--', linewidth=1, markersize=4, label=f'O(h), n={res_20["n"]}')
+# plt.plot(res_20['x'], res_20['y_O2'], 'rs--', linewidth=1, markersize=4, label=f'O(h²), n={res_20["n"]}')
+#
+# plt.xlabel('x')
+# plt.ylabel('u(x)')
+# plt.title('Сравнение решений (n=20)')
+# plt.legend()
+# plt.grid(True, alpha=0.3)
+
+# Погрешности для n=20
+res_20 = all_results[1]  # n=20
 x_fine = np.linspace(a, b, 200)
 y_exact_fine = y_exact_func(x_fine)
 
-plt.plot(x_fine, y_exact_fine, 'k-', linewidth=2, label='Точное решение')
-plt.plot(res_20['x'], res_20['y_O1'], 'bo--', linewidth=1, markersize=4, label=f'O(h), n={res_20["n"]}')
-plt.plot(res_20['x'], res_20['y_O2'], 'rs--', linewidth=1, markersize=4, label=f'O(h²), n={res_20["n"]}')
-
-plt.xlabel('x')
-plt.ylabel('u(x)')
-plt.title('Сравнение решений (n=20)')
-plt.legend()
-plt.grid(True, alpha=0.3)
-plt.tight_layout()
-
-# График погрешностей для n=20
-plt.subplot(1, 2, 2)
+plt.subplot(2, 3, 1)
 x_20 = res_20['x']
 err_O1 = np.abs(res_20['y_O1'] - res_20['y_exact'])
 err_O2 = np.abs(res_20['y_O2'] - res_20['y_exact'])
@@ -186,8 +185,67 @@ plt.title('Погрешности методов (n=20)')
 plt.legend()
 plt.grid(True, alpha=0.3)
 plt.yscale('log')
-plt.tight_layout()
 
+# График 3: Сравнение методов при n=10
+plt.subplot(2, 3, 4)
+res_10 = all_results[0]  # n=10
+plt.plot(x_fine, y_exact_fine, 'k-', linewidth=2, label='Точное решение')
+plt.plot(res_10['x'], res_10['y_O1'], 'bo-', linewidth=1, markersize=4, label=f'O(h), n={res_10["n"]}')
+plt.plot(res_10['x'], res_10['y_O2'], 'rs-', linewidth=1, markersize=4, label=f'O(h²), n={res_10["n"]}')
+
+plt.xlabel('x')
+plt.ylabel('u(x)')
+plt.title(f'Сравнение методов при n={res_10["n"]}')
+plt.legend()
+plt.grid(True, alpha=0.3)
+
+# График 4: Сравнение методов при n=20
+plt.subplot(2, 3, 5)
+res_20 = all_results[1]  # n=20
+plt.plot(x_fine, y_exact_fine, 'k-', linewidth=2, label='Точное решение')
+plt.plot(res_20['x'], res_20['y_O1'], 'bo-', linewidth=1, markersize=4, label=f'O(h), n={res_20["n"]}')
+plt.plot(res_20['x'], res_20['y_O2'], 'rs-', linewidth=1, markersize=4, label=f'O(h²), n={res_20["n"]}')
+
+plt.xlabel('x')
+plt.ylabel('u(x)')
+plt.title(f'Сравнение методов при n={res_20["n"]}')
+plt.legend()
+plt.grid(True, alpha=0.3)
+
+# График 5: Сравнение методов при n=100
+plt.subplot(2, 3, 6)
+res_100 = all_results[2]  # n=100
+plt.plot(x_fine, y_exact_fine, 'k-', linewidth=2, label='Точное решение')
+plt.plot(res_100['x'], res_100['y_O1'], 'bo-', linewidth=0.5, markersize=2, alpha=0.7, label=f'O(h), n={res_100["n"]}')
+plt.plot(res_100['x'], res_100['y_O2'], 'rs-', linewidth=0.5, markersize=2, alpha=0.7, label=f'O(h²), n={res_100["n"]}')
+
+plt.xlabel('x')
+plt.ylabel('u(x)')
+plt.title(f'Сравнение методов при n={res_100["n"]}')
+plt.legend()
+plt.grid(True, alpha=0.3)
+
+# График 6: Сходимость методов
+plt.subplot(2, 3, 2)
+n_list = [res['n'] for res in all_results]
+err_O1_L2_list = [res['err_O1_L2'] for res in all_results]
+err_O2_L2_list = [res['err_O2_L2'] for res in all_results]
+h_list = [res['h'] for res in all_results]
+
+plt.loglog(h_list, err_O1_L2_list, 'b-o', linewidth=2, markersize=8, label='Метод O(h)')
+plt.loglog(h_list, err_O2_L2_list, 'r-s', linewidth=2, markersize=8, label='Метод O(h²)')
+
+# Линии сходимости
+plt.loglog(h_list, np.array(h_list), 'k--', alpha=0.5, label='h (первый порядок)')
+plt.loglog(h_list, np.array(h_list)**2, 'k:', alpha=0.5, label='h² (второй порядок)')
+
+plt.xlabel('Шаг сетки h')
+plt.ylabel('L2-погрешность')
+plt.title('Зависимость погрешности от шага')
+plt.legend()
+plt.grid(True, alpha=0.3)
+
+plt.tight_layout()
 plt.show()
 
 # Вывод
